@@ -1,0 +1,133 @@
+import numpy as np
+import random
+import itertools
+import matplotlib.pyplot as plt
+from mobileNet import *
+from squeezeNet import *
+
+# Constants
+POPULATION_SIZE = 3
+MUTATION_RATE = 0.09
+NUM_GENERATIONS = 100
+k = 2  # Tournament size
+x_values = []
+y_values = []
+model="squeezenet"
+
+population = []
+fitness_scores = []
+chromosome=[]
+genCounter=1
+
+def deepLearningRun(learningRate,num_epochs,batch_len):
+    global model
+    accuracy=0
+    if model=="squeezenet":
+        trainSqueezeNet(learningRate,num_epochs,batch_len)
+        accuracy=testSqueezeNet()
+    elif model=="mobiletnet":
+        trainMobileNet(learningRate,num_epochs,batch_len)
+        accuracy=testMobileNet()
+    return accuracy
+
+def calculate_fitness(chromosome):
+    learningRate=chromosome[0]
+    num_epochs=chromosome[1]
+    batch_len=chromosome[2]
+    fitness = deepLearningRun(learningRate,num_epochs,batch_len)
+    return fitness
+
+# Function for tournament selection
+def tournament_selection(population, k, fitness_scores):
+    selected_indices = random.sample(range(len(population)), k)
+    selected_fitness_scores = [fitness_scores[i] for i in selected_indices]
+    winner_index = selected_indices[selected_fitness_scores.index(min(selected_fitness_scores))]
+    return population[winner_index]
+
+def mutate_genes(genes):
+    # Choose a random index for mutation
+    index_to_mutate = random.randint(0, len(genes) - 1)
+    
+    # Mutate the selected gene
+    mutation_amount = random.uniform(-0.5, 0.5)
+    genes[index_to_mutate] += mutation_amount
+
+    return genes
+
+def mutate(chromosome):
+    # Perform mutation only if the random number is less than the mutation rate
+    if random.random() < MUTATION_RATE:
+        return mutate_genes(chromosome)
+    return chromosome
+
+# Function for single point crossover
+def crossover(parent1, parent2):
+  
+    # Randomly choose a point for crossover
+    crossover_point = random.randint(1, len(parent1))
+    
+    # Create offspring by combining parts from both parents
+    offspring = list(parent1)[:crossover_point] + list(parent2)[crossover_point:]
+    
+    return offspring
+
+# Generate a new population with crossover and mutation
+def generate_new_population(population, fitness_scores):
+    new_population = []
+    while len(new_population) < POPULATION_SIZE:
+        # Select two parents using tournament selection
+        parent1 = tournament_selection(population, k, fitness_scores)
+        parent2 = tournament_selection(population, k, fitness_scores)
+        # Generate offspring using crossover
+        offspring = crossover(parent1, parent2)
+        if offspring:  # Check if a valid offspring was generated
+            mutated_offspring = mutate(offspring)
+            if mutated_offspring:  # Ensure the offspring is valid after mutation
+                new_population.append(mutated_offspring)
+            else:
+                # Handle case where mutation results in invalid offspring
+                pass
+        else:
+            # Handle case where crossover results in invalid offspring
+            pass
+    return new_population
+
+
+for i in range(POPULATION_SIZE):
+    population.append([
+        random.uniform(0.001, 0.1),
+        int(random.uniform(1, 6)),
+        int(random.uniform(1, 2))
+    ])
+
+# Main evolutionary loop
+for generation in range(NUM_GENERATIONS):
+    fitness_scores=[]
+    for chromosome in population:
+        fitness = calculate_fitness(chromosome) # for each chromosome
+        fitness_scores.append(fitness)
+        print('Generation = '+str(genCounter),'Fitness = '+str(fitness))
+    # Generate a new population
+    y_values.append(max(fitness_scores))
+    genCounter+=1
+    x_values.append(genCounter)
+
+    new_population = generate_new_population(population, fitness_scores)
+    population = new_population
+
+
+# Create a line chart
+plt.figure(figsize=(10, 6))
+plt.plot(x_values, y_values, marker='o')
+# plt.text(NUM_GENERATIONS, 3, '# Gen = '+str(NUM_GENERATIONS), ha='right', va='top', fontsize=12, color='blue')
+# plt.text(NUM_GENERATIONS, 2.8, 'Population size = '+str(POPULATION_SIZE), ha='right', va='top', fontsize=12, color='blue')
+# plt.text(NUM_GENERATIONS, 2.6, 'Mutation rate = '+str(MUTATION_RATE), ha='right', va='top', fontsize=12, color='blue')
+
+# Adding titles and labels
+plt.title('Fitness score over new generations')
+plt.xlabel('Generations')
+plt.ylabel('Fitness score')
+
+# Show the plot
+plt.grid(True)
+plt.show()
